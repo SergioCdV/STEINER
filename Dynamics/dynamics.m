@@ -25,7 +25,7 @@ function [ds] = dynamics(t, s)
     %Forces acting on the vehicle
     
     %Traslational dynamics 
-    dr = traslational_dynamics();
+    dr = traslational_dynamics(g, T, L, D, s);
     
     %Attitude dynamics
     dtheta = attitude_dynamics(I, s(7:end));
@@ -36,18 +36,30 @@ end
 
 %% Auxiliary functions 
 %Traslational dynamics 
-function [ds] = traslational_dynamics()
+function [ds] = traslational_dynamics(g, T, L, D, s)
     %Constants of the model 
-    Re = 6371e3;            %Earth mean radius
+    R = 6371e3;                  %Earth mean radius
+    omega = (2*pi)/(3600*24);    %Angular velocity of the Earth
     
     %State variables 
-    r = s(1:3);             %Position vector 
-    v = s(4:6);             %Velocity vector
+    x = s(1);               %X coordinate
+    y = s(2);               %Y coordinate
+    V = s(3);               %Velocity vector
+    gamma = s(4);           %Fligth path angle
+    m = s(5);               %Vehicle total mass
     
     %Kinematic equations 
+    dr(1) = V*(R/(R+y))*cos(gamma); 
+    dr(2) = V*sin(gamma); 
+    
+    %Mass flow rate 
+    dm = 0;
     
     %Dynamic equations 
-    
+    dv = [(1/m)*(T-D-m*g*sin(gamma)); 
+          -((g/V)-(V/(R+y)))*cos(gamma)-2*omega;
+          dm];
+           
     %Traslational vector field 
     ds = [dr; dv];
 end
