@@ -52,7 +52,10 @@ function [state] = ISA_model(h)
     T0 = [288.15; 216.65; 216.65; 228.65; 270.65; 270.65; 214.65; 186.87];  %Initial temperature for all layers     
     
     %Gravity field
-    g = g0*(Re/(Re+h))^2;
+    g = g0*(Re/h)^2;
+    
+    %Re-compute the altitude
+    h = h-Re;
     
     %Determine the atmosphere layer 
     GoOn = true; 

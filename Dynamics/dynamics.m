@@ -13,55 +13,63 @@
 
 % Everything is S.I units
 
-function [ds] = dynamics(t, s)
+function [ds] = dynamics(t, Cl, Cd, s, u)
     %State variables 
-    h = s(2);                           %Altitude of the vehicle 
-    
-    %Compute the environment 
-    atmos_state = atmosphere(h);        %State variables of the atmosphere
-    rho = atmos_state(1);               %Density of the atmosphere
-    g = gravity(h);                     %Gravity acceleration module
+    r = s(1:3);                                     %Position vector
+    v = s(4:6);                                     %Velocity vector
+    lambda = s(7);                                  %Geodetic latitude
+    q = s(8:11);                                    %Attitude quaternion
+    m = s(end);                                     %Vehicle's mass
+        
+    %Compute the environment conditions
+    atmos_state = atmosphere('ISA', norm(r));       %State variables of the atmosphere
+    rho = atmos_state(1);                           %Density of the atmosphere
+    g = gravity(r, lambda);                         %Gravity acceleration module
     
     %Forces acting on the vehicle
+    Fa = aerodynamic_force(rho, v, r, Cl, Cd);      %Aerodynamic force
+    T = thrust_force(q);                            %Thrust force
     
     %Traslational dynamics 
-    dr = traslational_dynamics(g, T, L, D, s);
+    dr = traslational_dynamics(g, T, Fa, u, s);
     
     %Attitude dynamics
-    dtheta = attitude_dynamics(I, s(7:end));
+    %dtheta = attitude_dynamics(I, s);
+    dtheta = zeros(7,1); 
+    
+    %Mass dynamics 
+    dm = 0;
     
     %Complete vector field 
-    ds = [dr; dtheta];
+    ds = [dr; dtheta; dm];
 end
 
 %% Auxiliary functions 
 %Traslational dynamics 
-function [ds] = traslational_dynamics(g, T, L, D, s)
+function [ds] = traslational_dynamics(g, T, Fa, u, s)
     %Constants of the model 
-    R = 6371e3;                  %Earth mean radius
     omega = (2*pi)/(3600*24);    %Angular velocity of the Earth
     
     %State variables 
-    x = s(1);               %X coordinate
-    y = s(2);               %Y coordinate
-    V = s(3);               %Velocity vector
-    gamma = s(4);           %Fligth path angle
-    m = s(5);               %Vehicle total mass
-    
+    r = s(1:3);                  %Position vector 
+    v = s(4:6);                  %Velocity vector 
+    lambda = s(end);             %Geodetic latitude
+    m = s(end);                  %Vehicle's mass
+        
     %Kinematic equations 
-    dr(1) = V*(R/(R+y))*cos(gamma); 
-    dr(2) = V*sin(gamma); 
+    dr = v;    
     
-    %Mass flow rate 
-    dm = 0;
+    %Latitude equation 
+    dlambda = (v(2)/r(3)); 
     
     %Dynamic equations 
-    dv = [(1/m)*(T-D-m*g*sin(gamma)); 
-          -((g/V)-(V/(R+y)))*cos(gamma)-2*omega;
-          dm];
+    dv = g+(1/m)*(T+Fa+u); 
+    dv(1) = dv(1) -2*omega*(v(3)*cos(lambda)-v(2)*sin(lambda))        -(v(1)*(v(3)-v(2)*tan(lambda)))/r(3);
+    dv(2) = dv(2) -omega*sin(lambda)*(omega*r(3)*cos(lambda)+2*v(1))  -(v(2)*v(3)+v(1)^2*tan(lambda))/r(3);
+    dv(3) = dv(3) +omega*cos(lambda)*(omega*r(3)*cos(lambda)+2*v(1))  -(v(1)^2+v(2)^2)/r(3);
            
     %Traslational vector field 
-    ds = [dr; dv];
+    ds = [dr; dv; dlambda];
 end
 
 %Attitude dynamics 
