@@ -16,11 +16,11 @@
 
 function [T] = thrust_force(q)
     %Norm of the thrust force 
-    T = 400000;                    %Thrust foce
+    T = 100;                    %Thrust foce
     
     %Vector resolution
     Q = quaternion2matrix(q);      %Attitude of the body frame with respect to the LVLH frame 
-    u =  [1; 0; 0];                %Thrust vector in the body frame 
+    u =  [0; 0; 1];                %Thrust vector in the body frame 
     u = Q.'*u;                     %Thrust vector in the LVLH frame 
     
     %Output 

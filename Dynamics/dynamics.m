@@ -17,18 +17,20 @@ function [ds] = dynamics(t, Cl, Cd, s, u)
     %State variables 
     r = s(1:3);                                     %Position vector
     v = s(4:6);                                     %Velocity vector
-    lambda = s(7);                                  %Geodetic latitude
-    q = s(8:11);                                    %Attitude quaternion
+    lambda = s(8);                                  %Geodetic latitude
+    q = s(9:12);                                    %Attitude quaternion
     m = s(end);                                     %Vehicle's mass
         
     %Compute the environment conditions
-    atmos_state = atmosphere('ISA', norm(r));       %State variables of the atmosphere
+    atmos_state = atmosphere('ISA', r);             %State variables of the atmosphere
     rho = atmos_state(1);                           %Density of the atmosphere
     g = gravity(r, lambda);                         %Gravity acceleration module
     
     %Forces acting on the vehicle
-    Fa = aerodynamic_force(rho, v, r, Cl, Cd);      %Aerodynamic force
+    Fa = aerodynamic_force(rho, v, r, q, Cl, Cd);   %Aerodynamic force
     T = thrust_force(q);                            %Thrust force
+
+    Fa = zeros(3,1);
     
     %Traslational dynamics 
     dr = traslational_dynamics(g, T, Fa, u, s);
@@ -48,35 +50,39 @@ end
 %Traslational dynamics 
 function [ds] = traslational_dynamics(g, T, Fa, u, s)
     %Constants of the model 
+    R = 6371.37e3;               %Earth mean radius
     omega = (2*pi)/(3600*24);    %Angular velocity of the Earth
     
     %State variables 
     r = s(1:3);                  %Position vector 
-    v = s(4:6);                  %Velocity vector 
-    lambda = s(end);             %Geodetic latitude
+    v = s(4:6);                  %Velocity vector
+    lambda = s(8);               %Geodetic latitude
     m = s(end);                  %Vehicle's mass
         
     %Kinematic equations 
     dr = v;    
     
+    %Longitude equations 
+    dtau = v(1)/(r(3)*cos(lambda));
+    
     %Latitude equation 
-    dlambda = (v(2)/r(3)); 
+    dlambda = v(2)/r(3); 
     
     %Dynamic equations 
     dv = g+(1/m)*(T+Fa+u); 
-    dv(1) = dv(1) -2*omega*(v(3)*cos(lambda)-v(2)*sin(lambda))        -(v(1)*(v(3)-v(2)*tan(lambda)))/r(3);
-    dv(2) = dv(2) -omega*sin(lambda)*(omega*r(3)*cos(lambda)+2*v(1))  -(v(2)*v(3)+v(1)^2*tan(lambda))/r(3);
-    dv(3) = dv(3) +omega*cos(lambda)*(omega*r(3)*cos(lambda)+2*v(1))  -(v(1)^2+v(2)^2)/r(3);
+    dv(1) = dv(1)-2*omega*(v(3)*cos(lambda)-v(2)*sin(lambda))-(v(1)*(v(3)-v(2)*tan(lambda)))/r(3);
+    dv(2) = dv(2)-omega*sin(lambda)*(omega*r(3)*cos(lambda)+2*v(1))-(v(2)*v(3)+v(1)^2*tan(lambda))/r(3);
+    dv(3) = dv(3)+omega*cos(lambda)*(omega*r(3)*cos(lambda)+2*v(1))+(v(1)^2+v(2)^2)/r(3);
            
     %Traslational vector field 
-    ds = [dr; dv; dlambda];
+    ds = [dr; dv; dtau; dlambda];
 end
 
 %Attitude dynamics 
-function [ds] = attitude_dynamics(I,s)    
+function [ds] = attitude_dynamics(I,T,s)    
     %State variables 
-    q = s(1:4);              %Attitude quaternion
-    omega = s(5:7);          %Angular velocity 
+    q = s(8:12);              %Attitude quaternion
+    omega = s(13:16);         %Angular velocity 
     
     %Kinematics equations
     dqe = -(1/2)*omega.'*q(2:4);

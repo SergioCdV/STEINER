@@ -32,7 +32,7 @@ end
 
 %% Auxiliary functions 
 %ISA model of the atmosphere (up to 100 km)
-function [state] = ISA_model(h)
+function [state] = ISA_model(r)
     %Layer-defining altitudes 
     h0 = zeros(8,1);    
     h0(2) = 11e3;         %Tropopause/stratosphere I layer altitude
@@ -45,18 +45,19 @@ function [state] = ISA_model(h)
         
     %Model constants
     g0 = 9.81;                                                              %Gravity acceleration at sea level
-    Re = 6371e3;                                                            %Earth mean radius
+    Re = 6371.37e3;                                                         %Earth mean radius
     Rg = 287.052;                                                           %Air ideal gas constant
     alpha = [-6.5e-3; 0; 1e-3; 2.8e-3; 0; -2.8e-3; -2e-3; 0];               %Thermal gradient for all layers
     p0 = [101325; 22632; 5474.9; 868.02; 110.91; 66.939; 3.9564; 03734];    %Initial pressure for all layers
-    T0 = [288.15; 216.65; 216.65; 228.65; 270.65; 270.65; 214.65; 186.87];  %Initial temperature for all layers     
+    T0 = [288.15; 216.65; 216.65; 228.65; 270.65; 270.65; 214.65; 186.87];  %Initial temperature for all layers   
+  
+    %Re-compute the altitude
+    h = norm(r);
+    h = h-Re;
     
     %Gravity field
     g = g0*(Re/h)^2;
-    
-    %Re-compute the altitude
-    h = h-Re;
-    
+        
     %Determine the atmosphere layer 
     GoOn = true; 
     layer = 1; 
