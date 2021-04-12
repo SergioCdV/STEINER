@@ -8,39 +8,40 @@
 %% Aerodynamic force %% 
 % This script provides a function to compute the aerodynamic force acting on the vehicle. 
 
-% Inputs:  - scalar rho, the density at which the aerodynamic force is to
-%            be evaluated
-%          - vector r, the position vector of the vehicle 
+% Inputs:  - scalar alpha, the angle of attack of the vehicle
+%          - vector atmos_state, containing the atmosphere state variables
 %          - vector v, the aerodynamic velocity vector of the vehicle 
 %          - vector q, the body frame quaternion
-%          - scalar Cl, the lift coefficient of the vehicle 
-%          - scalar Cd, the drag coefficient of the vehicle 
+%          - scalar alpha, the angle of attack of the vehicle
 
 % Outputs: - vector F, the total aerodynamic force. 
+%          - vector Ta, the total aerodynamic torque over the center of
+%            mass
 
 % Everything is S.I units
 
-function [F] = aerodynamic_force(rho, v, r, q, Cl, Cd)
+function [F, Ta] = aerodynamic_force(cg, atmos_state, v, q, alpha)
     %Constants of the model 
-    R = 6371.37e3;                                  %Earth mean radius
     S = 41;                                         %Vehicle surface area
+    rho = atmos_state(1);                           %Atmosphere density
 
-    %Compute the lift unit vector
-    r(3) = r(3)+R;
-    d = dot(r,v);
-    if (d == 0)
-        gamma = 0;
-    else
-        gamma = pi/2-acos(dot(r,v)/(norm(r)*norm(v)));
-    end
-    Q = quaternion2matrix(q);                       
-    ul = Q*[-sin(gamma); 0; cos(gamma)];
+    %Compute the aerodynamic drag unit vectors
+    Q = quaternion2matrix(q);                       %Rotation matrix from the LVLH frame to the body frame
+    ul = Q.'*[-sin(alpha); 0; cos(alpha)];          %Lift force unit vector
+    ud = -Q.'*[cos(alpha); 0; sin(alpha)];          %Drag force unit vector
+    ub = Q.'*zeros(3,1);                            %Lateral force unit vector
         
     %Compute the associated forces 
-    D = -(1/2)*Cd*rho*S*norm(v)*v;                  %Drag force
     L = (1/2)*Cl*rho*S*norm(v)^2*ul;                %Lift force
-    Q = zeros(3,1);                                 %Laterial force
+    D = (1/2)*Cd*rho*S*norm(v)^2*ud;               %Drag force
+    Q = zeros(3,1)*ub;                              %Laterial force
     
     %Total aerodynamic force in the LVLH frame 
     F = D+L+Q;
+    
+    %Compute the position of the center of pressure 
+    ca = zeros(3,1); 
+    
+    %Compute the aerodynamic torque 
+    Ta = cross(F, cg-ca);
 end
