@@ -11,6 +11,7 @@
 
 % Inputs:  - string model, determining which atmosphere model to use to
 %          compute the atmospheric density. 
+%          - scalar g, determining the gravity acceleration. 
 %          - scalar h, geopotential altitude at which to compute the
 %          atmosphere state variables. 
 
@@ -19,11 +20,11 @@
 
 % Everything is S.I units
 
-function [state] = atmosphere(model, h)
+function [state] = atmosphere(model, g, h)
     %Switch between models 
     switch (model)
         case 'ISA'
-            [state] = ISA_model(h);
+            [state] = ISA_model(g, h);
         otherwise
             disp('No valid atmospheric model was selected'); 
             state = [];
@@ -32,7 +33,7 @@ end
 
 %% Auxiliary functions 
 %ISA model of the atmosphere (up to 100 km)
-function [state] = ISA_model(r)
+function [state] = ISA_model(g, r)
     %Layer-defining altitudes 
     h0 = zeros(8,1);    
     h0(2) = 11e3;         %Tropopause/stratosphere I layer altitude
@@ -52,12 +53,13 @@ function [state] = ISA_model(r)
     T0 = [288.15; 216.65; 216.65; 228.65; 270.65; 270.65; 214.65; 186.87];  %Initial temperature for all layers   
   
     %Re-compute the altitude
-    h = norm(r);
+    h = r+[0; 0; Re]; 
+    h = norm(h);
     h = h-Re;
+    if (h < 0)
+        h = Re;
+    end
     
-    %Gravity field
-    g = g0*(Re/h)^2;
-        
     %Determine the atmosphere layer 
     GoOn = true; 
     layer = 1; 
@@ -79,6 +81,10 @@ function [state] = ISA_model(r)
     end
     
     rho = p/(Rg*T);                                                 %Air density
+    
+    if (rho == 0)
+        disp('');
+    end
     
     %Output 
     state = [rho; p; T];                                            %Atmosphere state variables

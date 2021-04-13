@@ -22,6 +22,7 @@ function [g] = gravity(r, lambda)
     J2 = 0.0010827;             %Second zonal harmonic of the Earth
     
     %State variables 
+    r = r + [0; 0; Re];         %Relative position vector to the center of the Earth
     y = r(2);                   %LVLH y coordinate
     z = r(3);                   %LVLH z coordinate
     

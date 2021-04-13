@@ -16,7 +16,7 @@ function [value, isterminal, direction] = crash_event(s)
     R = 6371.37e3; 
 
     %Main computation 
-    value = s(3)-R;
+    value = s(3);
     isterminal = 1; 
     direction = -1;
 end
