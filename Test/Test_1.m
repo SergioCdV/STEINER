@@ -14,14 +14,15 @@ set_graphics();
 %% Earth characteristics 
 R = 6371.37e3;              %Earth mean radius
 omega = (2*pi)/(3600*24);   %Earth mean angular velocity
+mu = 3.986e14;              %Earth gravitational parameter 
 
 %% Vehicle's characteristics 
 %Aerodynamic coefficients 
 Cl = 1;                     %Lift coefficient              
 Cd = 0.1;                   %Drag coefficient
 
-m = 1e5;                        %Total vehicle's mass
-I = 1e8*[1 0 0; 0 2 0; 0 0 3];  %Inertia dyadic
+m = 1e4;                        %Total vehicle's mass
+I = 1e4*[1 0 0; 0 2 0; 0 0 3];  %Inertia dyadic
 
 %% Integration setup 
 %Integration tolerances 
@@ -31,13 +32,13 @@ options = odeset('RelTol', RelTol, 'AbsTol', AbsTol, 'Events', @(t,s)crash_event
 
 %Integration time span 
 dt = 1e-3;                  %Time step 
-tf = 7200;                  %Final integration time 
+tf = 600;                   %Final integration time 
 tspan = 0:dt:tf;            %Integration span
 
 %% Initial conditions 
 %Departure conditions
 r = [0; 0; 0];              %Initial position with respect to the origin
-v = [10; 0; 10];            %Zero initial velocity
+v = [0; 0; 10];             %Zero initial velocity
 lambda = deg2rad(40.4165);  %Geodetic latitude of Madrid
 tau = deg2rad(-3.70256);    %Geodetic longitude of Madrid
 q0 = [1; 0; 0; 0];          %Initial LVLH-body frame quaternion
@@ -53,7 +54,7 @@ alpha = deg2rad(7);         %Angle of attack
 M = zeros(3,1);             %Control torques
 
 %% Integration of the trajectory 
-[t, S] = ode15s(@(t,s)final_dynamics(t, s, I, M, u, alpha), tspan, s0, options);
+[t, S] = ode113(@(t,s)final_dynamics(mu, t, s, I, M, u, alpha), tspan, s0, options);
 
 %% ECEF trajectory
 %Preallocation of the trajectory

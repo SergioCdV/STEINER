@@ -13,7 +13,7 @@
 
 % Everything is S.I units
 
-function [ds] = final_dynamics(t, s, I, M, u, alpha)  
+function [ds] = final_dynamics(mu, t, s, I, M, u, alpha)  
     %Constants of the model 
     mp = 100;                                       %Propellent mass 
     T0 = 9.81*1;                                    %Characteristic thrust of the vehicle
@@ -24,11 +24,7 @@ function [ds] = final_dynamics(t, s, I, M, u, alpha)
     lambda = s(8);                                  %Geodetic latitude
     q = s(9:12);                                    %Attitude quaternion
     m = s(end);                                     %Instantenous mass
-    
-    if(any(isnan(s)))
-        disp('');
-    end
-            
+                
     %Compute the environment conditions
     g = gravity(r, lambda);                         %Gravity acceleration module
     atmos_state = atmosphere('ISA', norm(g), r);    %State variables of the atmosphere
@@ -36,7 +32,7 @@ function [ds] = final_dynamics(t, s, I, M, u, alpha)
     %Forces and torques acting on the vehicle
     [Fa, Ta] = aerodynamic_force(atmos_state, v, q, alpha);           %Aerodynamic force and torque
     T = thrust_force(q, u);                                           %Thrust force
-    
+            
     %Mass dynamics
     if (m <= mp)
         T = zeros(3,1);                                               %Propellent mass constraint
@@ -47,7 +43,7 @@ function [ds] = final_dynamics(t, s, I, M, u, alpha)
     dr = traslational_dynamics(g, T, Fa, s);
             
     %Attitude dynamics
-    dtheta = attitude_dynamics(dm, I, Ta, M, dr, s);
+    dtheta = attitude_dynamics(mu, dm, I, Ta, M, dr, s);
     
     %Complete vector field 
     ds = [dr; dtheta; dm];
@@ -86,13 +82,14 @@ function [ds] = traslational_dynamics(g, T, Fa, s)
 end
 
 %Attitude dynamics 
-function [ds] = attitude_dynamics(dm, I, M, T, dr, s)    
+function [ds] = attitude_dynamics(mu, dm, I, M, T, dr, s)    
     %Constants of the model 
     R = 6371.37e3;                  %Mean Earth radius
     omega_e = (2*pi)/(3600*24);     %Mean Earth angular velocity 
     dI = zeros(3,3);                %Approximation of the derivative of the inertia tensor with respect to the mass
     
     %State variables 
+    r = s(1:3);                                      %Position vector
     lambda = s(8);                                   %Latitude of the aircraft
     dlambda = s(5)/(R+s(3));                         %Time derivative of the latitude
     dtau = s(4)/((R+s(3))*cos(lambda));              %Time derivative of the latitude
@@ -116,8 +113,12 @@ function [ds] = attitude_dynamics(dm, I, M, T, dr, s)
     ddtau = ((R+s(3))*dr(4)*cos(lambda)-dr(1)*(dr(3)*cos(lambda)-dr(2)*sin(lambda)))/((R+s(3))^2*cos(lambda)^2);
     alpha_20 = Q*[-ddlambda; ddtau*cos(lambda); ddtau*sin(lambda)];
     
+    %Gravity gradient 
+    r(3) = r(3) + R;
+    G = (3*mu)/norm(r)^5*(cross(Q*r, I*Q*r));
+    
     %Dynamics equations
-    domega = I^(-1)*(T+M-cross(omega21,I*omega21)-dm*dI*omega21)+cross(omega,omega01)+alpha_20;
+    domega = I^(-1)*(T+M+G-cross(omega21,I*omega21)-dm*dI*omega21)+cross(omega,omega01)-alpha_20;
     
     %Campo vectorial del sistema
     ds = [dq; domega]; 

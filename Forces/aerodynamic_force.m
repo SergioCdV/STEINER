@@ -62,4 +62,7 @@ function [F, Ta] = aerodynamic_force(atmos_state, v, q, alpha)
     
     %Compute the aerodynamic torque 
     Ta = cross(F, -ca);
+    if (imag(Ta) ~= 0)
+        disp('');
+    end
 end
