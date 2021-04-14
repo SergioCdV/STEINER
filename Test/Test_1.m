@@ -48,7 +48,7 @@ a = [q0; omega0];           %Attitude state variables
 s0 = [r; v; tau; lambda; a; m];  
 
 %Control conditions 
-u = 1e4;                      %Control vector
+u = 0;                      %Control vector
 alpha = deg2rad(7);         %Angle of attack
 M = zeros(3,1);             %Control torques
 
