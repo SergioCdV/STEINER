@@ -1,12 +1,13 @@
 %% STEINER %% 
 % STEINER team
-% Date: 27/03/21
-% File: test_1.m 
+% Date: 15/04/21
+% File: test_2.m 
 % Issue: 0 
 % Validated: 
 
-%% Test 1 %%
-% This scripts provides the function to test the translational model of equations 
+%% Test 2 %%
+% This scripts provides the function to optimize the trajectory by means of
+% nonlinear MPC 
 
 %% General setup 
 set_graphics();
@@ -17,13 +18,17 @@ omega = (2*pi)/(3600*24);   %Earth mean angular velocity
 mu = 3.986e14;              %Earth gravitational parameter 
 
 %% Vehicle's characteristics 
-m = 1e5;                        %Total vehicle's mass
+%Aerodynamic coefficients 
+Cl = 1;                     %Lift coefficient              
+Cd = 0.1;                   %Drag coefficient
+
+m = 1e4;                        %Total vehicle's mass
 I = 1e4*[1 0 0; 0 2 0; 0 0 3];  %Inertia dyadic
 
 %% Integration setup 
 %Integration tolerances 
 RelTol = 2.25e-14; 
-AbsTol = 1e-14; 
+AbsTol = 1e-22; 
 options = odeset('RelTol', RelTol, 'AbsTol', AbsTol, 'Events', @(t,s)crash_event(s));
 
 %Integration time span 
@@ -33,24 +38,47 @@ tspan = 0:dt:tf;            %Integration span
 
 %% Initial conditions 
 %Departure conditions
-r = [0; 0; R];              %Initial position with respect to the origin
-v = [0; 0; 1000];             %Zero initial velocity
+r = [0; 0; 0];              %Initial position with respect to the origin
+v = [0; 0; 10];             %Zero initial velocity
 lambda = deg2rad(40.4165);  %Geodetic latitude of Madrid
 tau = deg2rad(-3.70256);    %Geodetic longitude of Madrid
 q0 = [1; 0; 0; 0];          %Initial LVLH-body frame quaternion
-omega0 = zeros(3,1);        %Initial LVLH-body frame angular velocity
+omega0 = 1e-3*ones(3,1);    %Initial LVLH-body frame angular velocity
 a = [q0; omega0];           %Attitude state variables 
 
 %Initial state variables
 s0 = [r; v; tau; lambda; a; m];  
 
 %Control conditions 
-u = 1e5;                    %Control vector
 alpha = deg2rad(7);         %Angle of attack
-M = zeros(3,1);             %Control torques
 
-%% Integration of the trajectory 
-[t, S] = ode113(@(t,s)final_dynamics(mu, t, s, I, M, u, alpha), tspan, s0, options);
+%% Optimization of the trajectory: nonlinear MPC 
+%Preallocation 
+S = zeros(length(tspan), length(s0));       %Preallocation of the optimized trajectory
+u = zeros(1,length(tspan));                 %Thurst vector norm
+alpha = zeros(1,length(tspan));             %Angle of attack
+M = zeros(3,length(tspan));                 %Control torque
+
+%Initial values 
+S(1,:) = s0.';
+
+for i = 1:length(tspan)
+    %Shrink horizon time
+    finalHorizonIndex = length(tspan)-i;
+    Dt = tspan(i:end);
+    
+    %MPC scheme 
+    commands = optimizeMPC(); 
+    
+    %New integration
+    [t, S] = ode113(@(t,s)final_dynamics(mu, t, s, I, M(:,i), u(i), alpha(i)), Dt, S(i,:), options);
+    
+    %Update initial conditions
+    S(i+1,end) = s(end,:);          %Update trajectory
+    u(i+1) = commands(1,1);         %Update control norm
+    alpha(i+1) = commands(2,1);     %Update angle of attack
+    M(:,i+1) = commands(2:4,1);     %Update control torque
+end
 
 %% ECEF trajectory
 %Preallocation of the trajectory
@@ -102,6 +130,7 @@ title('Angular velocity evolution');
 legend('$\omega_x$', '$\omega_y$', '$\omega_z$');
 
 %% Auxiliary functions 
+%Set graphics 
 function set_graphics()
     %Set graphical properties
     set(groot, 'defaultAxesTickLabelInterpreter', 'latex'); 

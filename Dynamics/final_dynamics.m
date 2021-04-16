@@ -15,7 +15,7 @@
 
 function [ds] = final_dynamics(mu, t, s, I, M, u, alpha)  
     %Constants of the model 
-    mp = 100;                                       %Propellent mass 
+    mp = 10e4;                                      %Propellent mass 
     T0 = 9.81*1;                                    %Characteristic thrust of the vehicle
     
     %State variables 
@@ -32,7 +32,10 @@ function [ds] = final_dynamics(mu, t, s, I, M, u, alpha)
     %Forces and torques acting on the vehicle
     [Fa, Ta] = aerodynamic_force(atmos_state, v, q, alpha);           %Aerodynamic force and torque
     T = thrust_force(q, u);                                           %Thrust force
-            
+    
+    Fa = zeros(3,1);
+    Ta = zeros(3,1); 
+    
     %Mass dynamics
     if (m <= mp)
         T = zeros(3,1);                                               %Propellent mass constraint
