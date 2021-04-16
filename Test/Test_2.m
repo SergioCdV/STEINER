@@ -18,10 +18,6 @@ omega = (2*pi)/(3600*24);   %Earth mean angular velocity
 mu = 3.986e14;              %Earth gravitational parameter 
 
 %% Vehicle's characteristics 
-%Aerodynamic coefficients 
-Cl = 1;                     %Lift coefficient              
-Cd = 0.1;                   %Drag coefficient
-
 m = 1e4;                        %Total vehicle's mass
 I = 1e4*[1 0 0; 0 2 0; 0 0 3];  %Inertia dyadic
 
@@ -32,9 +28,9 @@ AbsTol = 1e-22;
 options = odeset('RelTol', RelTol, 'AbsTol', AbsTol, 'Events', @(t,s)crash_event(s));
 
 %Integration time span 
-dt = 1e-3;                  %Time step 
-tf = 600;                   %Final integration time 
-tspan = 0:dt:tf;            %Integration span
+dt = 1;                %Time step 
+tf = 50;                %Final integration time 
+tspan = 0:dt:tf;         %Integration span
 
 %% Initial conditions 
 %Departure conditions
@@ -49,9 +45,6 @@ a = [q0; omega0];           %Attitude state variables
 %Initial state variables
 s0 = [r; v; tau; lambda; a; m];  
 
-%Control conditions 
-alpha = deg2rad(7);         %Angle of attack
-
 %% Optimization of the trajectory: nonlinear MPC 
 %Preallocation 
 S = zeros(length(tspan), length(s0));       %Preallocation of the optimized trajectory
@@ -62,22 +55,22 @@ M = zeros(3,length(tspan));                 %Control torque
 %Initial values 
 S(1,:) = s0.';
 
-for i = 1:length(tspan)
+for i = 1:length(tspan)-1
     %Shrink horizon time
-    finalHorizonIndex = length(tspan)-i;
+    finalHorizonIndex = length(tspan)-(i-1);
     Dt = tspan(i:end);
     
     %MPC scheme 
-    commands = optimizeMPC(); 
+    commands = optimizeMPC(finalHorizonIndex, mu, I, Dt, S(i,:)); 
     
     %New integration
-    [t, S] = ode113(@(t,s)final_dynamics(mu, t, s, I, M(:,i), u(i), alpha(i)), Dt, S(i,:), options);
+    [t, s] = ode113(@(t,s)final_dynamics(mu, t, s, I, M(:,i), u(i), alpha(i)), Dt, S(i,:), options);
     
     %Update initial conditions
-    S(i+1,end) = s(end,:);          %Update trajectory
+     S(i+1,:) = s(end,:);            %Update trajectory
     u(i+1) = commands(1,1);         %Update control norm
     alpha(i+1) = commands(2,1);     %Update angle of attack
-    M(:,i+1) = commands(2:4,1);     %Update control torque
+    M(:,i+1) = commands(3:5,1);     %Update control torque
 end
 
 %% ECEF trajectory
@@ -104,7 +97,7 @@ title('ECEF trajectory');
 
 figure(2) 
 hold on
-plot(t, S(:,4:6));
+plot(tspan, S(:,4:6));
 hold off
 xlabel('Time [s]');
 ylabel('LVLH velocity [m/s]')
@@ -114,7 +107,7 @@ legend('LVLH $v_x$', 'LVLH $v_y$', 'LVLH $v_z$');
 
 %Plot quaternion
 figure(3) 
-plot(t, S(:,9:12));
+plot(tspan, S(:,9:12));
 xlabel('Time [s]');
 ylabel('Attitude quaternion');
 grid on; 
@@ -122,7 +115,7 @@ title('Attitude evolution');
 legend('$\eta$', '$\epsilon_1$', '$\epsilon_2$', '$\epsilon_3$');
 
 figure(4) 
-plot(t, S(:,13:15));
+plot(tspan, S(:,13:15));
 xlabel('Time [s]');
 ylabel('Angular velocity [rad/s]');
 grid on; 

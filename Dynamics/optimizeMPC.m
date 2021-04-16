@@ -18,15 +18,18 @@
 % Outpus: -  vector commands, containing the needed thrust norm and torque
 %            vector to optimize the trajectory
 
-function [commands] = optimizeMPC(finalHorizonIndex, Tmax)
+function [commands] = optimizeMPC(finalHorizonIndex, mu, I, Dt, s0)
+    %Constants 
+    Tmax = 100; 
+    
     %Optimization options 
-    options = optimoptions('fmincon', 'Display', 'iter', 'MaxFunctionEvaluations', 1000*N*T, 'UseParallel', false);
+    %options = optimoptions('fmincon', 'Display', 'iter', 'MaxFunctionEvaluations', 1000*N*T, 'UseParallel', false);
     
     %Cost function 
-    costfun = @(s)(s(end)*ones(1,finalHorizonIndex));
+    costfun = @(s)(-s(end));
     
     %Initial guess
-    x0 = [Tmax; 0; zeros(3,1)]; 
+    x0 = zeros(5,finalHorizonIndex); 
     
     %Linear constraints 
     A = []; 
@@ -35,30 +38,30 @@ function [commands] = optimizeMPC(finalHorizonIndex, Tmax)
     beq = [];
     
     %Upper and lower bounds
-    lb = [zeros(1,finalHorizonIndex); deg2rad(5)*ones(3,finalHorizonIndex); -Inf*ones(3,finalHorizonIndex)];
-    ub = [Tmax*ones(1,finalHorizonIndex); -deg2rad(5)*ones(3,finalHorizonIndex); -Inf*ones(3,finalHorizonIndex)];
+    lb = [zeros(1,finalHorizonIndex); -deg2rad(5)*ones(1,finalHorizonIndex); -Tmax*ones(3,finalHorizonIndex)];
+    ub = [Tmax*ones(1,finalHorizonIndex); deg2rad(5)*ones(1,finalHorizonIndex); Tmax*ones(3,finalHorizonIndex)];
     
     %Optimization 
-    commands = fmincon(costfun, x0, A, b, Aeq, beq, lb, ub, @nonlcon, options);
+    commands = fmincon(@(s)costfun(s), x0, A, b, Aeq, beq, lb, ub);%@(s)nonlcon(mu, I, Dt, s0, s));
 end
 
 %% Auxiliary functions
 %Nonlinear and linear constraints 
-function [c, ceq] = nonlcon(mu, I, Dt, s0)
+function [c, ceq] = nonlcon(mu, I, Dt, s0, commands)
     %Optimization variables 
-    u = commands(1); 
-    alpha = commands(2); 
-    M = commands(3:5);
+    u = commands(1,:); 
+    alpha = commands(2,:); 
+    M = commands(3:5,:);
     
     %Constraint constants 
     R = 6371.137;               %Earth mean radius
     num_cons = 7;               %Number of non linear constraints
-    sm = 1e4;                   %Final mass
     gamma_min = 9.81;           %Min acceleration norm
-    gamma_max = 2*g;            %Max acceleration norm
+    gamma_max = 2*9.81;         %Max acceleration norm
     theta_min = -deg2rad(75);   %Minimum pitch angle
     theta_max = deg2rad(75);    %Maximum pitch angle
     sh = R+200e3;               %Maximum flight altitude
+    dL = 10e6/R;                %Arc length to reach (rad)
     
     %Integration tolerances 
     RelTol = 2.25e-14; 
@@ -66,26 +69,34 @@ function [c, ceq] = nonlcon(mu, I, Dt, s0)
     options = odeset('RelTol', RelTol, 'AbsTol', AbsTol, 'Events', @(t,s)crash_event(s));
     
     %Integrate the trajectory 
-    [t, S] = ode113(@(t,s)final_dynamics(mu, t, s, I, M, u, alpha), Dt, s0, options);
+    dt = Dt(2)-Dt(1);
+    S = zeros(length(Dt),length(s0)); 
+    S(1,:) = s0;
+    for i = 1:length(Dt)
+    	[~, saux] = ode113(@(t,s)final_dynamics(mu, t, s, I, M(:,i), u(i), alpha(i)), [0 dt], S(i,:), options);
+        S(i+1,:) = saux(end,:); 
+    end
     
     %Final boundary conditions
     rf = S(end,3).';
-    mf = S(end,end); 
     
     %Nonlinear constraints
-    c = zeros(num_cons, length(t));
-    for i = 1:length(t)
-        gamma = final_dynamics(mu, t, S(i,:).', I, M(:,i), u(i), alpha(i));
+    c = zeros(num_cons, length(Dt));
+    for i = 1:length(Dt)
+        q = S(i,9:12); 
+        Q = quaternion2matrix(q);
+        theta = asin(-Q(3,1));
+        gamma = final_dynamics(mu, 0, S(i,:).', I, M(:,i), u(i), alpha(i));
         gamma = norm(gamma(4:6));
         h = S(i,3);
-        if (i == length(t))
-            cons = [0; 0; gamma-gamma_max; gamma-gamma_min; theta-theta_min; theta-theta_max; h-sh];
+        if (i ~= length(Dt))
+            cons = [0; -gamma+gamma_min; gamma-gamma_max; -theta+theta_min; theta-theta_max; -h; h-sh];
         else
-            cons = [0; mf-sm; gamma-gamma_max; gamma-gamma_min; theta-theta_min; theta-theta_max; h-sh];
+            cons = [0; -gamma+gamma_min; gamma-gamma_max; -theta+theta_min; theta-theta_max; -h; h-sh];
         end
-        c = [c cons]; 
+        c(:,i) = cons; 
     end
     
-    c(1,end) = 
-    ceq = [zeros(length(t),1) rf];
+    c(1,end) = dL-acos(cos(S(end,7))*cos(S(end,8)));
+    ceq = rf;
 end
