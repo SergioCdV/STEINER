@@ -12,9 +12,6 @@
 % Outputs: - detection of the crashing event. 
 
 function [value, isterminal, direction] = crash_event(s)    
-    %Earth mean radius 
-    R = 6371.37e3; 
-
     %Main computation 
     value = s(3);
     isterminal = 1; 
