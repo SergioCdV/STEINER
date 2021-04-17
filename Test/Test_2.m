@@ -18,24 +18,24 @@ omega = (2*pi)/(3600*24);   %Earth mean angular velocity
 mu = 3.986e14;              %Earth gravitational parameter 
 
 %% Vehicle's characteristics 
-m = 1e4;                        %Total vehicle's mass
-I = 1e4*[1 0 0; 0 2 0; 0 0 3];  %Inertia dyadic
+m = 1e5;                        %Total vehicle's mass
+I = 1e5*[1 0 0; 0 2 0; 0 0 3];  %Inertia dyadic
 
 %% Integration setup 
 %Integration tolerances 
-RelTol = 2.25e-14; 
-AbsTol = 1e-22; 
+RelTol = 1e-12; 
+AbsTol = 1e-12; 
 options = odeset('RelTol', RelTol, 'AbsTol', AbsTol, 'Events', @(t,s)crash_event(s));
 
 %Integration time span 
-dt = 1;                %Time step 
-tf = 50;                %Final integration time 
-tspan = 0:dt:tf;         %Integration span
+dt = 100;                %Time step 
+tf = 7200;              %Final integration time 
+tspan = 0:dt:tf;       %Integration span
 
 %% Initial conditions 
 %Departure conditions
 r = [0; 0; 0];              %Initial position with respect to the origin
-v = [0; 0; 10];             %Zero initial velocity
+v = [0; 0; 1000];           %Zero initial velocity
 lambda = deg2rad(40.4165);  %Geodetic latitude of Madrid
 tau = deg2rad(-3.70256);    %Geodetic longitude of Madrid
 q0 = [1; 0; 0; 0];          %Initial LVLH-body frame quaternion
@@ -45,32 +45,53 @@ a = [q0; omega0];           %Attitude state variables
 %Initial state variables
 s0 = [r; v; tau; lambda; a; m];  
 
+%% Optimization of the trajectory: single try
+%Shrink horizon time
+finalHorizonIndex = length(tspan);
+Dt = tspan(1:end);
+
+%MPC scheme 
+commands = optimizeMPC(finalHorizonIndex, mu, I, Dt, s0); 
+u = commands(1,:); 
+alpha = commands(2,:); 
+M = commands(3:5,:);
+
+%New integration
+S(1,:) = s0;
+for i = 1:size(commands,2)
+    [t, s] = ode113(@(t,s)final_dynamics(mu, t, s, I, M(:,i), u(i), alpha(:,i)), Dt, S(i,:), options);
+    S(i+1,:) = s(end,:);
+end
+S = S(1:end-1,:);
+
 %% Optimization of the trajectory: nonlinear MPC 
-%Preallocation 
-S = zeros(length(tspan), length(s0));       %Preallocation of the optimized trajectory
-u = zeros(1,length(tspan));                 %Thurst vector norm
-alpha = zeros(1,length(tspan));             %Angle of attack
-M = zeros(3,length(tspan));                 %Control torque
+if (false)
+    %Preallocation 
+    S = zeros(length(tspan), length(s0));       %Preallocation of the optimized trajectory
+    u = zeros(1,length(tspan));                 %Thurst vector norm
+    alpha = zeros(1,length(tspan));             %Angle of attack
+    M = zeros(3,length(tspan));                 %Control torque
 
-%Initial values 
-S(1,:) = s0.';
+    %Initial values 
+    S(1,:) = s0.';
 
-for i = 1:length(tspan)-1
-    %Shrink horizon time
-    finalHorizonIndex = length(tspan)-(i-1);
-    Dt = tspan(i:end);
-    
-    %MPC scheme 
-    commands = optimizeMPC(finalHorizonIndex, mu, I, Dt, S(i,:)); 
-    
-    %New integration
-    [t, s] = ode113(@(t,s)final_dynamics(mu, t, s, I, M(:,i), u(i), alpha(i)), Dt, S(i,:), options);
-    
-    %Update initial conditions
-     S(i+1,:) = s(end,:);            %Update trajectory
-    u(i+1) = commands(1,1);         %Update control norm
-    alpha(i+1) = commands(2,1);     %Update angle of attack
-    M(:,i+1) = commands(3:5,1);     %Update control torque
+    for i = 1:length(tspan)
+        %Shrink horizon time
+        finalHorizonIndex = length(tspan)-(i-1);
+        Dt = tspan(i:end);
+
+        %MPC scheme 
+        commands = optimizeMPC(finalHorizonIndex, mu, I, Dt, S(i,:)); 
+
+        %New integration
+        [t, s] = ode113(@(t,s)final_dynamics(mu, t, s, I, M(:,i), u(i), alpha(i)), Dt, S(i,:), options);
+
+        %Update initial conditions
+        S(i+1,:) = s(end,:);            %Update trajectory
+        u(i+1) = commands(1,1);         %Update control norm
+        alpha(i+1) = commands(2,1);     %Update angle of attack
+        M(:,i+1) = commands(3:5,1);     %Update control torque
+    end
 end
 
 %% ECEF trajectory
@@ -97,7 +118,7 @@ title('ECEF trajectory');
 
 figure(2) 
 hold on
-plot(tspan, S(:,4:6));
+plot(tspan(1:size(S,1)), S(:,4:6));
 hold off
 xlabel('Time [s]');
 ylabel('LVLH velocity [m/s]')
@@ -107,7 +128,7 @@ legend('LVLH $v_x$', 'LVLH $v_y$', 'LVLH $v_z$');
 
 %Plot quaternion
 figure(3) 
-plot(tspan, S(:,9:12));
+plot(tspan(1:size(S,1)), S(:,9:12));
 xlabel('Time [s]');
 ylabel('Attitude quaternion');
 grid on; 
@@ -115,7 +136,7 @@ title('Attitude evolution');
 legend('$\eta$', '$\epsilon_1$', '$\epsilon_2$', '$\epsilon_3$');
 
 figure(4) 
-plot(tspan, S(:,13:15));
+plot(tspan(1:size(S,1)), S(:,13:15));
 xlabel('Time [s]');
 ylabel('Angular velocity [rad/s]');
 grid on; 

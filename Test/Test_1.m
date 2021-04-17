@@ -18,23 +18,23 @@ mu = 3.986e14;              %Earth gravitational parameter
 
 %% Vehicle's characteristics 
 m = 1e5;                        %Total vehicle's mass
-I = 1e4*[1 0 0; 0 2 0; 0 0 3];  %Inertia dyadic
+I = 1e8*[1 0 0; 0 2 0; 0 0 3];  %Inertia dyadic
 
 %% Integration setup 
 %Integration tolerances 
-RelTol = 2.25e-14; 
-AbsTol = 1e-14; 
+RelTol = 1e-12; 
+AbsTol = 1e-12; 
 options = odeset('RelTol', RelTol, 'AbsTol', AbsTol, 'Events', @(t,s)crash_event(s));
 
 %Integration time span 
-dt = 1e-3;                  %Time step 
-tf = 600;                   %Final integration time 
+dt = 1;                   %Time step 
+tf = 1000;                  %Final integration time 
 tspan = 0:dt:tf;            %Integration span
 
 %% Initial conditions 
 %Departure conditions
-r = [0; 0; R];              %Initial position with respect to the origin
-v = [0; 0; 1000];             %Zero initial velocity
+r = [0; 0; 0];              %Initial position with respect to the origin
+v = [0; 0; 1000];           %Zero initial velocity
 lambda = deg2rad(40.4165);  %Geodetic latitude of Madrid
 tau = deg2rad(-3.70256);    %Geodetic longitude of Madrid
 q0 = [1; 0; 0; 0];          %Initial LVLH-body frame quaternion

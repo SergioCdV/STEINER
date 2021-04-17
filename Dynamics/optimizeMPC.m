@@ -20,7 +20,7 @@
 
 function [commands] = optimizeMPC(finalHorizonIndex, mu, I, Dt, s0)
     %Constants 
-    Tmax = 100; 
+    Tmax = 1e5; 
     
     %Optimization options 
     %options = optimoptions('fmincon', 'Display', 'iter', 'MaxFunctionEvaluations', 1000*N*T, 'UseParallel', false);
@@ -42,7 +42,7 @@ function [commands] = optimizeMPC(finalHorizonIndex, mu, I, Dt, s0)
     ub = [Tmax*ones(1,finalHorizonIndex); deg2rad(5)*ones(1,finalHorizonIndex); Tmax*ones(3,finalHorizonIndex)];
     
     %Optimization 
-    commands = fmincon(@(s)costfun(s), x0, A, b, Aeq, beq, lb, ub);%@(s)nonlcon(mu, I, Dt, s0, s));
+    commands = fmincon(@(s)costfun(s), x0, A, b, Aeq, beq, lb, ub, @(s)nonlcon(mu, I, Dt, s0, s));
 end
 
 %% Auxiliary functions
@@ -61,11 +61,11 @@ function [c, ceq] = nonlcon(mu, I, Dt, s0, commands)
     theta_min = -deg2rad(75);   %Minimum pitch angle
     theta_max = deg2rad(75);    %Maximum pitch angle
     sh = R+200e3;               %Maximum flight altitude
-    dL = 10e6/R;                %Arc length to reach (rad)
+    dL = 50e3/R;                %Arc length to reach (rad)
     
     %Integration tolerances 
-    RelTol = 2.25e-14; 
-    AbsTol = 1e-22; 
+    RelTol = 1e-10; 
+    AbsTol = 1e-10; 
     options = odeset('RelTol', RelTol, 'AbsTol', AbsTol, 'Events', @(t,s)crash_event(s));
     
     %Integrate the trajectory 
@@ -84,7 +84,7 @@ function [c, ceq] = nonlcon(mu, I, Dt, s0, commands)
     c = zeros(num_cons, length(Dt));
     for i = 1:length(Dt)
         q = S(i,9:12); 
-        Q = quaternion2matrix(q);
+        Q = quaternion2matrix(q.');
         theta = asin(-Q(3,1));
         gamma = final_dynamics(mu, 0, S(i,:).', I, M(:,i), u(i), alpha(i));
         gamma = norm(gamma(4:6));

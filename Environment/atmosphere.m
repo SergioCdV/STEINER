@@ -63,10 +63,14 @@ function [state] = ISA_model(g, r)
     GoOn = true; 
     layer = 1; 
     while (GoOn)
-        if ((h < h0(layer+1)) || (layer + 1 == length(h0)))
+        if (h < h0(layer+1))
             GoOn = false; 
         else
             layer = layer+1;
+            if (layer == length(h0))
+                GoOn = false;
+                h = h0(end);
+            end
         end
     end
     
@@ -83,6 +87,8 @@ function [state] = ISA_model(g, r)
     
     if (rho == 0)
         disp('');
+    elseif (imag(rho) ~= 0)
+        disp('')
     elseif (isnan(rho))
         disp('');
     end

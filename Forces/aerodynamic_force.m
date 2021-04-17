@@ -31,20 +31,25 @@ function [F, Ta] = aerodynamic_force(atmos_state, v, q, alpha)
     
     %Mach number 
     M = norm(v)/sqrt(gamma*T*R);
-    if (isnan(M))
-        disp('');
-    end
     
     %Compute the lift and drag coefficients
-    Cl = 2*pi*alpha/sqrt(abs(1-M^2));               %Lift coefficient
-    Cd = Cl^2;                                      %Drag coefficient
+    if (M > 1.1)
+        Cl = 4*alpha/sqrt(M^2-1);                   %Lift coefficient
+        Cd = Cl^2;                                  %Drag coefficient
+    elseif (M < 0.7)
+        Cl = 2*pi*alpha/sqrt(1-M^2);                %Lift coefficient
+        Cd = Cl^2;                                  %Drag coefficient
+    else
+        Cl = 0;                                     %Lift coefficient
+        Cd = 1;                                     %Drag coefficient
+    end
 
     %Compute the aerodynamic drag unit vectors
     Q = quaternion2matrix(q);                       %Rotation matrix from the LVLH frame to the body frame
     ul = Q.'*[-sin(alpha); 0; cos(alpha)];          %Lift force unit vector
     ud = -Q.'*[cos(alpha); 0; sin(alpha)];          %Drag force unit vector
     ub = cross(ul,ud);                              %Lateral force unit vector
-        
+            
     %Compute the associated forces 
     L = (1/2)*Cl*rho*S*norm(v)^2*ul;                %Lift force
     D = (1/2)*Cd*rho*S*norm(v)^2*ud;                %Drag force
@@ -62,7 +67,4 @@ function [F, Ta] = aerodynamic_force(atmos_state, v, q, alpha)
     
     %Compute the aerodynamic torque 
     Ta = cross(F, -ca);
-    if (imag(Ta) ~= 0)
-        disp('');
-    end
 end
