@@ -1,13 +1,13 @@
 %% STEINER %% 
 % STEINER team
 % Date: 15/04/21
-% File: test_2.m 
+% File: test_3.m 
 % Issue: 0 
 % Validated: 
 
 %% Test 2 %%
 % This scripts provides the function to optimize the trajectory by means of
-% nonlinear MPC 
+% nonlinear MPC with genetic algorithms.
 
 %% General setup 
 set_graphics();
@@ -28,18 +28,18 @@ AbsTol = 1e-12;
 options = odeset('RelTol', RelTol, 'AbsTol', AbsTol, 'Events', @(t,s)crash_event(s));
 
 %Integration time span 
-dt = 50;              %Time step 
-tf = 600;             %Final integration time 
+dt = 1;                %Time step 
+tf = 100;              %Final integration time 
 tspan = 0:dt:tf;       %Integration span
 
 %% Initial conditions 
 %Departure conditions
 r = [0; 0; 0];              %Initial position with respect to the origin
-v = [0; 0; 0];              %Zero initial velocity
+v = [0; 0; 1000];           %Zero initial velocity
 lambda = deg2rad(40.4165);  %Geodetic latitude of Madrid
 tau = deg2rad(-3.70256);    %Geodetic longitude of Madrid
 q0 = [1; 0; 0; 0];          %Initial LVLH-body frame quaternion
-omega0 = 1e-3*ones(3,1);    %Initial LVLH-body frame angular velocity
+omega0 = zeros(3,1);        %Initial LVLH-body frame angular velocity
 a = [q0; omega0];           %Attitude state variables 
 
 %Initial state variables
@@ -51,7 +51,7 @@ finalHorizonIndex = length(tspan);
 Dt = tspan(1:end);
 
 %MPC scheme 
-method = 'NPL';
+method = 'Genetic';
 commands = optimizeMPC(finalHorizonIndex, mu, I, Dt, s0, method); 
 u = commands(1,:); 
 alpha = commands(2,:); 

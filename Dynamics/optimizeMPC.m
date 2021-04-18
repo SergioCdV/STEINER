@@ -18,40 +18,53 @@
 % Outpus: -  vector commands, containing the needed thrust norm and torque
 %            vector to optimize the trajectory
 
-function [commands] = optimizeMPC(finalHorizonIndex, mu, I, Dt, s0)
+function [commands] = optimizeMPC(finalHorizonIndex, mu, I, Dt, s0, method)
     %Constants 
     Tmax = 1e5; 
-    
-    %Optimization options 
-    %options = optimoptions('fmincon', 'Display', 'iter', 'MaxFunctionEvaluations', 1000*N*T, 'UseParallel', false);
+    dof = 5*finalHorizonIndex;
     
     %Cost function 
-    costfun = @(s)(-s(end));
-    
-    %Initial guess
-    x0 = zeros(5,finalHorizonIndex); 
-    
+    costfun = @(s)(-norm(s(1,:)));
+        
     %Linear constraints 
     A = []; 
     b = [];
     Aeq = []; 
     beq = [];
     
-    %Upper and lower bounds
-    lb = [zeros(1,finalHorizonIndex); -deg2rad(5)*ones(1,finalHorizonIndex); -Tmax*ones(3,finalHorizonIndex)];
-    ub = [Tmax*ones(1,finalHorizonIndex); deg2rad(5)*ones(1,finalHorizonIndex); Tmax*ones(3,finalHorizonIndex)];
+    switch (method)
+        case 'Genetic'
+            %Optimization options
+            PopSize = 100;          %Population size for each generation
+            MaxGenerations = 10;    %Maximum number of generations for the evolutionary algorithm
+            options = optimoptions(@ga,'PopulationSize', PopSize, 'MaxGenerations', MaxGenerations, 'ConstraintTolerance', 1e-1, 'PlotFcn', @gaplotbestf);
     
-    %Optimization 
-    commands = fmincon(@(s)costfun(s), x0, A, b, Aeq, beq, lb, ub, @(s)nonlcon(mu, I, Dt, s0, s));
+            %Upper and lower bounds
+            lb = [zeros(finalHorizonIndex,1); -deg2rad(5)*ones(finalHorizonIndex,1); -Tmax*ones(3*finalHorizonIndex,1)];
+            ub = [Tmax*ones(finalHorizonIndex,1); deg2rad(5)*ones(finalHorizonIndex,1); Tmax*ones(3*finalHorizonIndex,1)];
+    
+            %Optimization 
+            commands = ga(@(s)costfun(s), dof, A, b, Aeq, beq, lb, ub, @(s)nonlcon(mu, finalHorizonIndex, I, Dt, s0, s), options);
+        case 'NPL'
+            %Upper and lower bounds
+            lb = [zeros(1,finalHorizonIndex); -deg2rad(5)*ones(1,finalHorizonIndex); -Tmax*ones(3,finalHorizonIndex)];
+            ub = [Tmax*ones(1,finalHorizonIndex); deg2rad(5)*ones(1,finalHorizonIndex); Tmax*ones(3,finalHorizonIndex)];
+    
+            %Optimization 
+            x0 = [Tmax*ones(1,finalHorizonIndex); zeros(1,finalHorizonIndex); Tmax*ones(3,finalHorizonIndex)];
+            commands = fmincon(@(s)costfun(s), x0, A, b, Aeq, beq, lb, ub, @(s)nonlcon(mu, finalHorizonIndex, I, Dt, s0, s));
+        otherwise
+            error('No valid method was chosen');
+    end
 end
 
 %% Auxiliary functions
 %Nonlinear and linear constraints 
-function [c, ceq] = nonlcon(mu, I, Dt, s0, commands)
+function [c, ceq] = nonlcon(mu, finalHorizonIndex, I, Dt, s0, commands)
     %Optimization variables 
-    u = commands(1,:); 
-    alpha = commands(2,:); 
-    M = commands(3:5,:);
+    u = commands(1:finalHorizonIndex); 
+    alpha = commands(1+finalHorizonIndex:2*finalHorizonIndex); 
+    M = commands(1+2*finalHorizonIndex:end);
     
     %Constraint constants 
     R = 6371.137;               %Earth mean radius
