@@ -52,11 +52,9 @@ function [state] = ISA_model(g, r)
     T0 = [288.15; 216.65; 216.65; 228.65; 270.65; 270.65; 214.65; 186.87];  %Initial temperature for all layers   
   
     %Re-compute the altitude
-    h = r+[0; 0; Re]; 
-    h = norm(h);
-    h = h-Re;
+    h = r(3);
     if (h < 0)
-        h = Re;
+        h = 0;
     end
     
     %Determine the atmosphere layer 
