@@ -16,8 +16,7 @@
 
 function [ds] = opt_simple_dynamics(t, s, u, alpha)  
     %Constants of the model 
-    mp = 1e4;                                      %Propellent mass 
-    T0 = 9.81*500;                                 %Characteristic thrust of the vehicle
+    T0 = 9.81*1000;                                 %Characteristic thrust of the vehicle
     
     %State variables 
     r = s(1:2,:);                                  %Position vector
@@ -30,15 +29,15 @@ function [ds] = opt_simple_dynamics(t, s, u, alpha)
     %Compute the environment conditions
     for i = 1:size(s,2)
         g = gravity(r(:,i));                                           %Gravity acceleration module
-        atmos_state = atmosphere('ISA', norm(g), r(:,i));              %State variables of the atmosphere
+        %atmos_state = atmosphere('ISA', norm(g), r(:,i));              %State variables of the atmosphere
         
         %Forces and torques acting on the vehicle
-        [Fa] = aerodynamic_force(atmos_state, v(:,i), alpha(i));       %Aerodynamic force and torque
+        %[Fa] = aerodynamic_force(atmos_state, v(:,i), alpha(i));       %Aerodynamic force and torque
        
+        rho = 0.5; 
+        Fa = zeros(2,1);
+        
         %Mass dynamics
-        if (m(i) <= mp)
-            u = 0;                                                     %Propellent mass constraint
-        end
         dm = -norm(u)/T0;                                              %Mass consumption
 
         %Traslational dynamics 
