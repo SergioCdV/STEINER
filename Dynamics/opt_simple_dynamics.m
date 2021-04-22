@@ -38,7 +38,7 @@ function [ds] = opt_simple_dynamics(t, s, u, alpha)
         Fa = zeros(2,1);
         
         %Mass dynamics
-        dm = -norm(u)/T0;                                              %Mass consumption
+        dm = -norm(u(i))/T0;                                              %Mass consumption
 
         %Traslational dynamics 
         dr = traslational_dynamics(g, u(i), Fa, s(:,i));

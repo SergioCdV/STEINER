@@ -26,12 +26,15 @@ function [ds] = final_dynamics(mu, t, s, I, M, u, alpha)
     m = s(end);                                     %Instantenous mass
                 
     %Compute the environment conditions
-    g = gravity(r, lambda);                         %Gravity acceleration module
+    g = gravity(r, lambda)                         %Gravity acceleration module
     atmos_state = atmosphere('ISA', norm(g), r);    %State variables of the atmosphere
     
     %Forces and torques acting on the vehicle
     [Fa, Ta] = aerodynamic_force(atmos_state, v, q, alpha);           %Aerodynamic force and torque
     T = thrust_force(q, u);                                           %Thrust force
+    
+    Fa = zeros(3,1); 
+    T = zeros(3,1);
        
     %Mass dynamics
     if (m <= mp)

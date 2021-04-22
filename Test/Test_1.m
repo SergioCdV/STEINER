@@ -27,14 +27,14 @@ AbsTol = 1e-12;
 options = odeset('RelTol', RelTol, 'AbsTol', AbsTol, 'Events', @(t,s)crash_event(s));
 
 %Integration time span 
-dt = 1;                   %Time step 
-tf = 1000;                  %Final integration time 
+dt = 1;                     %Time step 
+tf = 7200;                  %Final integration time 
 tspan = 0:dt:tf;            %Integration span
 
 %% Initial conditions 
 %Departure conditions
 r = [0; 0; 0];              %Initial position with respect to the origin
-v = [0; 0; 1000];           %Zero initial velocity
+v = [1300; 0; 1400];        %Zero initial velocity
 lambda = deg2rad(40.4165);  %Geodetic latitude of Madrid
 tau = deg2rad(-3.70256);    %Geodetic longitude of Madrid
 q0 = [1; 0; 0; 0];          %Initial LVLH-body frame quaternion
