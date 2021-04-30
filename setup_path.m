@@ -15,6 +15,7 @@ function setup_path()
     folderKin = strcat(mainFolder,'\Kinematics');
     folderEnv = strcat(mainFolder,'\Environment');
     folderFor = strcat(mainFolder,'\Forces');
+    folderCon = strcat(mainFolder,'\Control');
     folderTes = strcat(mainFolder,'\Test');
     
     %Add paths
@@ -23,4 +24,5 @@ function setup_path()
     addpath(genpath(folderEnv), '-end');
     addpath(genpath(folderFor), '-end');
     addpath(genpath(folderTes), '-end');
+    addpath(genpath(folderCon), '-end');
 end

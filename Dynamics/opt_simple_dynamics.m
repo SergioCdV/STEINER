@@ -16,7 +16,7 @@
 
 function [ds] = opt_simple_dynamics(t, s, u, alpha)  
     %Constants of the model 
-    T0 = 9.81*1000;                                 %Characteristic thrust of the vehicle
+    T0 = 9.81*500;                                 %Characteristic thrust of the vehicle
     
     %State variables 
     r = s(1:2,:);                                  %Position vector
@@ -60,9 +60,6 @@ function [g] = gravity(r)
     r(2) = r(2)+Re ;            %Relative position vector to the center of the Earth
     z = r(2);                   %LVLH z coordinate
     
-    %Inertial z coordinate in the LVLH frame
-    u = [0; 1];
-        
     %Gravity J2 pertubed acceleration 
     g = -(mu/z^3)*(z -(1/2)*J2*(Re/z)^2*(6*z+3-15*z));
 end

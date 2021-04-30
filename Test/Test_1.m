@@ -17,8 +17,8 @@ omega = (2*pi)/(3600*24);   %Earth mean angular velocity
 mu = 3.986e14;              %Earth gravitational parameter 
 
 %% Vehicle's characteristics 
-m = 1e5;                        %Total vehicle's mass
-I = 1e8*[1 0 0; 0 2 0; 0 0 3];  %Inertia dyadic
+m = 50000;                             %Total vehicle's mass
+I = [3.6e5 0 0; 0 4e5 0; 0 0 4.18e4];  %Inertia dyadic
 
 %% Integration setup 
 %Integration tolerances 
@@ -45,8 +45,8 @@ a = [q0; omega0];           %Attitude state variables
 s0 = [r; v; tau; lambda; a; m];  
 
 %Control conditions 
-u = 1e5;                    %Control vector
-alpha = deg2rad(7);         %Angle of attack
+u = 0;                      %Control vector
+alpha = deg2rad(3);         %Angle of attack
 M = zeros(3,1);             %Control torques
 
 %% Integration of the trajectory 
